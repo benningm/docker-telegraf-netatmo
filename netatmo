@@ -1,0 +1,98 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'json'
+
+module Netatmo
+  class Token
+    @@url = 'https://api.netatmo.com/oauth2/token'
+
+    def initialize(client_id, client_secret, username, password, scope='read_station', grant_type='password')
+      @client_id = client_id
+      @client_secret = client_secret
+      @username = username
+      @password = password
+      @grant_type = grant_type
+      @scope = scope
+
+      refresh_token
+    end
+
+    def refresh_token
+      res = Net::HTTP.post_form( URI(@@url), {
+        'grant_type' => @grant_type,
+        'client_id' => @client_id,
+        'client_secret' => @client_secret,
+        'username' => @username,
+        'password' => @password,
+        'scope' => @scope,
+      } )
+      unless res.is_a?(Net::HTTPSuccess)
+        raise "login failed: #{res.body}"
+      end
+      data = JSON.parse(res.body)
+      raise "API did not return access_token" unless data.has_key?('access_token')
+      @token = data['access_token']
+    end
+
+    def to_s
+      @token
+    end
+  end
+
+  class Station
+    @@url = 'https://api.netatmo.com/api/getstationsdata'
+    def initialize(token, id)
+      @token = token
+      @id = id
+      @filter = [ 'Humidity', 'Noise', 'CO2', 'Pressure', 'AbsolutePressure', 'Temperature' ]
+      update_data
+    end
+
+    def update_data
+      uri = URI(@@url)
+      params = { :access_token => @token, :device_id => @id }
+      uri.query = URI.encode_www_form(params)
+      res = Net::HTTP.get_response(uri)
+      unless res.is_a?(Net::HTTPSuccess)
+        raise "error updating station data: #{res.body}"
+      end
+      @data = JSON.parse(res.body)
+    end
+
+    def to_s
+      @data.to_json
+    end
+
+    def devices
+      @data.to_h['body'].to_h['devices']
+    end
+
+		def filter_data(data)
+			data.select { |key, value| @filter.include?(key) }
+    end
+
+    def measurements
+      device = devices.to_a[0]
+      raise 'no data for device' if device.nil?
+      data = {}
+			data[device['module_name']] = filter_data(device['dashboard_data'])
+      device['modules'].to_a.each do |mod|
+        data[mod['module_name']] = filter_data(mod['dashboard_data'])
+      end
+      { device['station_name'] => data }
+    end
+  end
+end
+
+client_id = ENV['NETATMO_CLIENT_ID'] || ''
+client_secret = ENV['NETATMO_CLIENT_SECRET'] || ''
+username = ENV['NETATMO_USERNAME'] || 'user'
+password = ENV['NETATMO_PASSWORD'] || 'password'
+device_id = ENV['NETATMO_DEVICE_ID'] || '70:ee:50:00:00:00'
+
+token = Netatmo::Token.new(client_id, client_secret, username, password)
+station = Netatmo::Station.new(token, device_id)
+
+puts station.measurements.to_json
+
