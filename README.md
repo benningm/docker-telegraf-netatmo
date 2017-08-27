@@ -34,6 +34,7 @@ You need to configure a `exec` input in your `telegraf.conf`:
 ```
 [[inputs.exec]]
   commands = ["/usr/local/bin/netatmo"]
+  interval = "5m"
   timeout = "15s"
   data_format = "json"
   name_suffix = "_netatmo"
