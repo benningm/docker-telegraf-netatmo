@@ -68,17 +68,37 @@ module Netatmo
       @data.to_h['body'].to_h['devices']
     end
 
-		def filter_data(data)
-			data.select { |key, value| @filter.include?(key) }
+    def process_data(data)
+      filtered = filter_data(data)
+      output = calc_extra_values(filtered)
+      output
+    end
+
+    def filter_data(data)
+      data.select { |key, value| @filter.include?(key) }
+    end
+
+    def calc_extra_values(data)
+      if data.key?('Temperature') && data.key?('Humidity')
+        data['AbsoluteHumidity'] = calc_absolute_humidity(
+          data['Temperature'], data['Humidity']
+        )
+        data
+      end
+    end
+
+    def calc_absolute_humidity(t, r)
+      a = 13.2471*(2.718 ** (17.67*t/(t+243.5)))*r/(273.15+t)
+      a = (a*100).round / 100.0
     end
 
     def measurements
       device = devices.to_a[0]
       raise 'no data for device' if device.nil?
       data = {}
-			data[device['module_name']] = filter_data(device['dashboard_data'])
+      data[device['module_name']] = process_data(device['dashboard_data'])
       device['modules'].to_a.each do |mod|
-        data[mod['module_name']] = filter_data(mod['dashboard_data'])
+        data[mod['module_name']] = process_data(mod['dashboard_data'])
       end
       { device['station_name'] => data }
     end
