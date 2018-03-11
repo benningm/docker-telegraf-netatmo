@@ -10,7 +10,7 @@ First obtain API keys from the Netatmo developmer website:
 
 https://dev.netatmo.com/
 
-This keys (client_id, client_secret) must be passed together with your
+This keys (client\_id, client\_secret) must be passed together with your
 user credentials via environment variables.
 
 ## Dependencies
@@ -22,7 +22,7 @@ The script requires ruby 2.0 or newer.
 Here is an example what data is read from the station (with one outdoor sensor):
 
 ```
-$ ruby2.0 ./netatmo  | json_pp
+$ ruby ./netatmo  | json_pp
 {
    "station" : {
       "indoor" : {
@@ -49,11 +49,11 @@ The `AbsoluteHumidity` values are calculated by the script.
 
 The script reads credentials from the environment:
 
-* NETATMO_CLIENT_ID (client_id of your Netatmo App)
-* NETATMO_CLIENT_SECRET (client_secret of your Netatmo App)
-* NETATMO_USERNAME (Your Netatmo username)
-* NETATMO_PASSWORD
-* NETATMO_DEVICE_ID (MAC address of your netatmo station)
+* NETATMO\_CLIENT\_ID (client\_id of your Netatmo App)
+* NETATMO\_CLIENT\_SECRET (client\_secret of your Netatmo App)
+* NETATMO\_USERNAME (Your Netatmo username)
+* NETATMO\_PASSWORD
+* NETATMO\_DEVICE\_ID (MAC address of your netatmo station)
 
 Set this environment variables before starting the `netatmo` script.
 
