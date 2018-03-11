@@ -13,12 +13,16 @@ https://dev.netatmo.com/
 This keys (client_id, client_secret) must be passed together with your
 user credentials via environment variables.
 
+## Dependencies
+
+The script requires ruby 2.0 or newer.
+
 ## Example Data
 
 Here is an example what data is read from the station (with one outdoor sensor):
 
 ```
-$ ruby ./netatmo  | json_xs
+$ ruby2.0 ./netatmo  | json_pp
 {
    "station" : {
       "indoor" : {
