@@ -42,10 +42,13 @@ module Netatmo
 
   class Station
     @@url = 'https://api.netatmo.com/api/getstationsdata'
+
+    attr_accessor :data, :token, :id, :filter
+
     def initialize(token, id)
       @token = token
       @id = id
-      @filter = [ 'Humidity', 'Noise', 'CO2', 'Pressure', 'AbsolutePressure', 'Temperature' ]
+      @filter = [ 'Humidity', 'Noise', 'CO2', 'Pressure', 'AbsolutePressure', 'Temperature', 'Rain', 'WindStrength', 'WindAngle', 'GustStrength', 'GustAngle' ]
       update_data
     end
 
@@ -83,8 +86,8 @@ module Netatmo
         data['AbsoluteHumidity'] = calc_absolute_humidity(
           data['Temperature'], data['Humidity']
         )
-        data
       end
+      data
     end
 
     def calc_absolute_humidity(t, r)
