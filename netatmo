@@ -101,6 +101,8 @@ module Netatmo
       data = {}
       data[device['module_name']] = process_data(device['dashboard_data'])
       device['modules'].to_a.each do |mod|
+        next unless mod.key? 'dashboard_data'
+
         data[mod['module_name']] = process_data(mod['dashboard_data'])
       end
       { device['station_name'] => data }
