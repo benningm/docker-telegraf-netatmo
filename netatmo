@@ -2,6 +2,9 @@
 
 require 'net/http'
 require 'json'
+require 'erb'
+require 'yaml'
+require 'optparse'
 
 module Netatmo
   class Token
@@ -19,19 +22,21 @@ module Netatmo
     end
 
     def refresh_token
-      res = Net::HTTP.post_form( URI(@@url), {
-        'grant_type' => @grant_type,
-        'client_id' => @client_id,
-        'client_secret' => @client_secret,
-        'username' => @username,
-        'password' => @password,
-        'scope' => @scope,
-      } )
-      unless res.is_a?(Net::HTTPSuccess)
-        raise "login failed: #{res.body}"
-      end
+      res = Net::HTTP.post_form(
+        URI(@@url), {
+          'grant_type' => @grant_type,
+          'client_id' => @client_id,
+          'client_secret' => @client_secret,
+          'username' => @username,
+          'password' => @password,
+          'scope' => @scope
+        }
+      )
+      raise "login failed: #{res.body}" unless res.is_a?(Net::HTTPSuccess)
+
       data = JSON.parse(res.body)
-      raise "API did not return access_token" unless data.has_key?('access_token')
+      raise 'API did not return access_token' unless data.key?('access_token')
+
       @token = data['access_token']
     end
 
@@ -48,18 +53,30 @@ module Netatmo
     def initialize(token, id)
       @token = token
       @id = id
-      @filter = [ 'Humidity', 'Noise', 'CO2', 'Pressure', 'AbsolutePressure', 'Temperature', 'Rain', 'WindStrength', 'WindAngle', 'GustStrength', 'GustAngle' ]
+      @filter = %w[
+        Humidity
+        Noise
+        CO2
+        Pressure
+        AbsolutePressure
+        Temperature
+        Rain
+        WindStrength
+        WindAngle
+        GustStrength
+        GustAngle
+      ]
+
       update_data
     end
 
     def update_data
       uri = URI(@@url)
-      params = { :access_token => @token, :device_id => @id }
+      params = { access_token: @token, device_id: @id }
       uri.query = URI.encode_www_form(params)
       res = Net::HTTP.get_response(uri)
-      unless res.is_a?(Net::HTTPSuccess)
-        raise "error updating station data: #{res.body}"
-      end
+      raise "error updating station data: #{res.body}" unless res.is_a?(Net::HTTPSuccess)
+
       @data = JSON.parse(res.body)
     end
 
@@ -91,13 +108,14 @@ module Netatmo
     end
 
     def calc_absolute_humidity(t, r)
-      a = 13.2471*(2.718 ** (17.67*t/(t+243.5)))*r/(273.15+t)
-      a = (a*100).round / 100.0
+      a = 13.2471 * (2.718**(17.67 * t / (t + 243.5))) * r / (273.15 + t)
+      (a * 100).round / 100.0
     end
 
     def measurements
       device = devices.to_a[0]
       raise 'no data for device' if device.nil?
+
       data = {}
       data[device['module_name']] = process_data(device['dashboard_data'])
       device['modules'].to_a.each do |mod|
@@ -105,19 +123,75 @@ module Netatmo
 
         data[mod['module_name']] = process_data(mod['dashboard_data'])
       end
+
       { device['station_name'] => data }
+    end
+  end
+
+  class App
+    attr_reader :config_file, :config
+
+    def parse_options
+      OptionParser.new do |opts|
+        opts.banner = 'Usage: netatmo [options]'
+
+        opts.on('-cPATH', '--config=PATH', 'Path to configuration file') do |c|
+          @config_file = c
+        end
+      end.parse!
+    end
+
+    def initialize
+      @config_file = '/etc/netatmo.yml'
+      parse_options
+      @config = Config.load_file(config_file)
+    end
+
+    def run
+      puts station.measurements.to_json
+    end
+
+    def token
+      Netatmo::Token.new(
+        config.client_id,
+        config.client_secret,
+        config.username,
+        config.password
+      )
+    end
+
+    def station
+      Netatmo::Station.new(token, config.device_id)
+    end
+  end
+
+  class Config < Hash
+    class MissingSetting < StandardError; end
+
+    attr_accessor :file
+
+    def self.load_file(file)
+      raw = File.read(file)
+      content = ERB.new(raw).result
+      hash = YAML.safe_load(content, aliases: true).to_hash
+
+      config = new
+      config.merge!(hash)
+      config.file = file
+      config
+    end
+
+    def method_missing(name, *_args, &_block)
+      unless key? name.to_s
+        raise(
+          MissingSetting,
+          "No setting for #{name} in #{file}"
+        )
+      end
+
+      fetch(name.to_s)
     end
   end
 end
 
-client_id = ENV['NETATMO_CLIENT_ID'] || ''
-client_secret = ENV['NETATMO_CLIENT_SECRET'] || ''
-username = ENV['NETATMO_USERNAME'] || 'user'
-password = ENV['NETATMO_PASSWORD'] || 'password'
-device_id = ENV['NETATMO_DEVICE_ID'] || '70:ee:50:00:00:00'
-
-token = Netatmo::Token.new(client_id, client_secret, username, password)
-station = Netatmo::Station.new(token, device_id)
-
-puts station.measurements.to_json
-
+Netatmo::App.new.run

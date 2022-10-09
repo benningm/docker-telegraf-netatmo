@@ -1,23 +1,24 @@
 # Netatmo script for telegraf
 
-This repository contains a script and a docker image for retrieving
-data of a netatmo weather station for use with telegraf.
-
-The image is based on the telegraf image and adds a script for retrieving
-data on top. But you may also use the script standalone.
+This repository contains a script for retrieving data of a netatmo weather
+station for use with telegraf.
 
 First obtain API keys from the Netatmo developmer website:
 
 https://dev.netatmo.com/
 
-This keys (client\_id, client\_secret) must be passed together with your
-user credentials via environment variables.
-
 ## Dependencies
 
 The script requires ruby 2.0 or newer.
 
-## Example Data
+## Usage
+
+```
+Usage: netatmo [options]
+    -c, --config=PATH                Path to configuration file
+```
+
+## Example
 
 Here is an example what data is read from the station (with one outdoor sensor):
 
@@ -45,31 +46,20 @@ $ ruby ./netatmo  | json_pp
 
 The `AbsoluteHumidity` values are calculated by the script.
 
-## Environment variables
-
-The script reads credentials from the environment:
-
-* NETATMO\_CLIENT\_ID (client\_id of your Netatmo App)
-* NETATMO\_CLIENT\_SECRET (client\_secret of your Netatmo App)
-* NETATMO\_USERNAME (Your Netatmo username)
-* NETATMO\_PASSWORD
-* NETATMO\_DEVICE\_ID (MAC address of your netatmo station)
-
-Set this environment variables before starting the `netatmo` script.
-
-If you're using the Docker image pass them with `docker run` and the `-e` option:
-
-```
-docker run \
-  -e 'NETATMO_CLIENT_ID=<hex-value>'
-  -e 'NETATMO_CLIENT_SECRET=<hex-value>'
-  -e 'NETATMO_USERNAME=<email>
-  -e 'NETATMO_PASSWORD=<secret>'
-  -e 'NETATMO_DEVICE_ID=<station MAC>'
-  ...
-```
-
 ## Configuration
+
+The script reads credentials from the `/etc/netatmo.yml` configuration file:
+
+```
+---
+client_id: <hex-value>
+client_secret: <hex-value>
+username: <email>
+password: <secret>
+device_id: <station MAC>
+```
+
+## Telegraf configuration
 
 You need to configure a `exec` input in your `telegraf.conf`:
 
@@ -85,21 +75,3 @@ You need to configure a `exec` input in your `telegraf.conf`:
   data_format = "json"
   name_suffix = "_netatmo"
 ```
-
-## Run as docker container
-
-Now run the container with credentials and configuration:
-
-```
-docker run
-  --name telegraf \
-  -e 'NETATMO_CLIENT_ID=<hex-value>'
-  -e 'NETATMO_CLIENT_SECRET=<hex-value>'
-  -e 'NETATMO_USERNAME=<email>
-  -e 'NETATMO_PASSWORD=<secret>'
-  -e 'NETATMO_DEVICE_ID=<station MAC>'
-  -v /etc/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro \
-  --link influxdb \
-  benningm/telegraf-netatmo:latest
-```
-
