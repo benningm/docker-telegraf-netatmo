@@ -10,25 +10,23 @@ module Netatmo
   class Token
     @@url = 'https://api.netatmo.com/oauth2/token'
 
-    def initialize(client_id, client_secret, username, password, scope='read_station', grant_type='password')
+    def initialize(client_id, client_secret, refresh_token, scope='read_station', grant_type='refresh_token')
       @client_id = client_id
       @client_secret = client_secret
-      @username = username
-      @password = password
+      @refresh_token = refresh_token
       @grant_type = grant_type
       @scope = scope
 
-      refresh_token
+      do_refresh_token
     end
 
-    def refresh_token
+    def do_refresh_token
       res = Net::HTTP.post_form(
         URI(@@url), {
           'grant_type' => @grant_type,
           'client_id' => @client_id,
           'client_secret' => @client_secret,
-          'username' => @username,
-          'password' => @password,
+          'refresh_token' => @refresh_token,
           'scope' => @scope
         }
       )
@@ -155,8 +153,7 @@ module Netatmo
       Netatmo::Token.new(
         config.client_id,
         config.client_secret,
-        config.username,
-        config.password
+        config.refresh_token
       )
     end
 

@@ -1,6 +1,5 @@
 ---
 client_id: bla
 client_secret: bla
-username: bla
-password: bla
+refresh_token: bla
 device_id: bla
