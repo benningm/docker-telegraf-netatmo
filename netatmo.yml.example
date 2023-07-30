@@ -1,6 +1,7 @@
 ---
-client_id: bla
-client_secret: bla
-username: bla
-password: bla
-device_id: bla
+client_id: 1234567890abcdef12345678
+client_secret: aAbBcCdDeEfF1234567890xXyYzZ1
+refresh_token: 1234567890abcdef12345678|1234567890abcdef1234567890abcdef
+device_id: de:ad:be:ef:01:01
+include_station_name: false
+

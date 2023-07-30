@@ -10,25 +10,23 @@ module Netatmo
   class Token
     @@url = 'https://api.netatmo.com/oauth2/token'
 
-    def initialize(client_id, client_secret, username, password, scope='read_station', grant_type='password')
+    def initialize(client_id, client_secret, refresh_token, scope='read_station', grant_type='refresh_token')
       @client_id = client_id
       @client_secret = client_secret
-      @username = username
-      @password = password
+      @refresh_token = refresh_token
       @grant_type = grant_type
       @scope = scope
 
-      refresh_token
+      auth_refresh_token
     end
 
-    def refresh_token
+    def auth_refresh_token
       res = Net::HTTP.post_form(
         URI(@@url), {
           'grant_type' => @grant_type,
           'client_id' => @client_id,
           'client_secret' => @client_secret,
-          'username' => @username,
-          'password' => @password,
+          'refresh_token' => @refresh_token,
           'scope' => @scope
         }
       )
@@ -50,10 +48,20 @@ module Netatmo
 
     attr_accessor :data, :token, :id, :filter
 
-    def initialize(token, id)
+    def include_station_name?
+      !!@include_station_name
+    end
+
+    def initialize(token, id, include_station_name = true)
       @token = token
       @id = id
-      @filter = %w[
+      @include_station_name = include_station_name
+      @device_filter = %w[
+        wifi_status
+        rf_status
+        battery_percent
+      ]
+      @dashboard_filter = %w[
         Humidity
         Noise
         CO2
@@ -88,14 +96,16 @@ module Netatmo
       @data.to_h['body'].to_h['devices']
     end
 
-    def process_data(data)
-      filtered = filter_data(data)
-      output = calc_extra_values(filtered)
+    def process_device_data(data)
+      output = {}
+      output.merge!(
+        data.select { |key, value| @device_filter.include?(key) }
+      )
+      if data.key? 'dashboard_data'
+        dashboard_data = data['dashboard_data'].select { |key, value| @dashboard_filter.include?(key) }
+        output.merge!(calc_extra_values(dashboard_data))
+      end
       output
-    end
-
-    def filter_data(data)
-      data.select { |key, value| @filter.include?(key) }
     end
 
     def calc_extra_values(data)
@@ -117,14 +127,16 @@ module Netatmo
       raise 'no data for device' if device.nil?
 
       data = {}
-      data[device['module_name']] = process_data(device['dashboard_data'])
+      data[device['module_name']] = process_device_data(device)
       device['modules'].to_a.each do |mod|
-        next unless mod.key? 'dashboard_data'
-
-        data[mod['module_name']] = process_data(mod['dashboard_data'])
+        data[mod['module_name']] = process_device_data(mod)
       end
 
-      { device['station_name'] => data }
+      if include_station_name?
+        { device['station_name'] => data }
+      else
+        data
+      end
     end
   end
 
@@ -155,13 +167,15 @@ module Netatmo
       Netatmo::Token.new(
         config.client_id,
         config.client_secret,
-        config.username,
-        config.password
+        config.refresh_token
       )
     end
 
     def station
-      Netatmo::Station.new(token, config.device_id)
+      include_station_name = true
+      include_station_name = config.include_station_name \
+        if config.key? 'include_station_name'
+      Netatmo::Station.new(token, config.device_id, include_station_name)
     end
   end
 

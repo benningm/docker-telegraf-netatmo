@@ -23,24 +23,50 @@ Usage: netatmo [options]
 Here is an example what data is read from the station (with one outdoor sensor):
 
 ```
-$ ruby ./netatmo  | json_pp
 {
-   "station" : {
-      "indoor" : {
-         "Noise" : 40,
-         "Humidity" : 70,
-         "Temperature" : 18.7,
-         "CO2" : 615,
-         "AbsolutePressure" : 982.3,
-         "Pressure" : 1017.6,
-         "AbsoluteHumidity" : 11.2
-      },
-      "outdoor" : {
-         "Temperature" : 12.8,
-         "Humidity" : 98,
-         "AbsoluteHumidity" : 10.97
-      }
-   }
+  "station": {
+    "Innenraum": {
+      "wifi_status": 65,
+      "Temperature": 21.9,
+      "CO2": 1246,
+      "Humidity": 62,
+      "Noise": 37,
+      "Pressure": 1010.2,
+      "AbsolutePressure": 975.4,
+      "AbsoluteHumidity": 11.96
+    },
+    "Aussenraum": {
+      "battery_percent": 45,
+      "rf_status": 74,
+      "Temperature": 15.8,
+      "Humidity": 100,
+      "AbsoluteHumidity": 13.45
+    }
+  }
+}
+```
+
+Or with `include_station_name: false`:
+
+```
+{
+  "Innenraum": {
+    "wifi_status": 66,
+    "Temperature": 21.8,
+    "CO2": 1242,
+    "Humidity": 62,
+    "Noise": 47,
+    "Pressure": 1010,
+    "AbsolutePressure": 975.2,
+    "AbsoluteHumidity": 11.89
+  },
+  "Aussenraum": {
+    "battery_percent": 45,
+    "rf_status": 74,
+    "Temperature": 15.6,
+    "Humidity": 100,
+    "AbsoluteHumidity": 13.29
+  }
 }
 ```
 
@@ -54,9 +80,9 @@ The script reads credentials from the `/etc/netatmo.yml` configuration file:
 ---
 client_id: <hex-value>
 client_secret: <hex-value>
-username: <email>
-password: <secret>
+refresh_token: <token generated on website>
 device_id: <station MAC>
+# include_station_name: false # returns stations data on root level
 ```
 
 ## Telegraf configuration
