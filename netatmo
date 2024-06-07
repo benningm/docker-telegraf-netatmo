@@ -7,30 +7,51 @@ require 'json'
 require 'erb'
 require 'yaml'
 require 'optparse'
+require 'date'
 
 module Netatmo
   # Netatmo API Authentication Token
   class Token
     @@url = 'https://api.netatmo.com/oauth2/token'
 
-    def initialize(client_id, client_secret, refresh_token, scope = 'read_station', grant_type = 'refresh_token')
-      @client_id = client_id
-      @client_secret = client_secret
-      @refresh_token = refresh_token
-      @grant_type = grant_type
-      @scope = scope
+    attr_accessor :refresh_token
 
-      auth_refresh_token
+    def initialize(config)
+      @client_id = config.client_id
+      @client_secret = config.client_secret
+      @path = config.token_path
+      @refresh_token = nil
+      @access_token = nil
+      @expires_at = DateTime.new
+    end
+
+    def expired?
+      @expires_at < DateTime.now
+    end
+
+    def load
+      data = YAML.load_file(@path)
+      @access_token, @refresh_token = data.values_at('access_token', 'refresh_token')
+      @expires_at = DateTime.rfc3339(data['expires_at'])
+    end
+
+    def save
+      data = {
+        'access_token' => @access_token,
+        'refresh_token' => @refresh_token,
+        'expires_at' => @expires_at.rfc3339
+      }
+      File.write(@path, data.to_yaml)
     end
 
     def auth_refresh_token
       res = Net::HTTP.post_form(
         URI(@@url), {
-          'grant_type' => @grant_type,
+          'grant_type' => 'refresh_token',
           'client_id' => @client_id,
           'client_secret' => @client_secret,
           'refresh_token' => @refresh_token,
-          'scope' => @scope
+          'scope' => 'read_station'
         }
       )
       raise "login failed: #{res.body}" unless res.is_a?(Net::HTTPSuccess)
@@ -38,11 +59,20 @@ module Netatmo
       data = JSON.parse(res.body)
       raise 'API did not return access_token' unless data.key?('access_token')
 
-      @token = data['access_token']
+      @access_token, @refresh_token = data.values_at('access_token', 'refresh_token')
+      @expires_at = DateTime.now + Rational(data['expires_in'].to_i - 600, 86_400)
+
+      save
+    end
+
+    def access_token
+      auth_refresh_token if expired?
+
+      @access_token
     end
 
     def to_s
-      @token
+      access_token
     end
   end
 
@@ -146,34 +176,35 @@ module Netatmo
 
   # Commandline inteface for the netatmo application
   class App
-    attr_reader :config_file, :config
+    attr_reader :config_path, :config, :token
 
     def parse_options
       OptionParser.new do |opts|
         opts.banner = 'Usage: netatmo [options]'
 
-        opts.on('-cPATH', '--config=PATH', 'Path to configuration file') do |c|
-          @config_file = c
+        opts.on('-iTOKEN', '--initial-token=TOKEN', 'Refresh token to initialize authentication') do |value|
+          @initial_token = value
+        end
+        opts.on('-cPATH', '--config=PATH', 'Path to configuration file') do |value|
+          @config_path = value
         end
       end.parse!
     end
 
     def initialize
-      @config_file = '/etc/netatmo.yml'
+      @config_path = '/etc/netatmo.yml'
       parse_options
-      @config = Config.load_file(config_file)
+      @config = Config.load_file(@config_path)
+      @token = Netatmo::Token.new(@config)
+      if @initial_token
+        @token.refresh_token = @initial_token
+      else
+        @token.load
+      end
     end
 
     def run
       puts station.measurements.to_json
-    end
-
-    def token
-      Netatmo::Token.new(
-        config.client_id,
-        config.client_secret,
-        config.refresh_token
-      )
     end
 
     def station

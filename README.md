@@ -15,6 +15,7 @@ The script requires ruby 2.0 or newer.
 
 ```
 Usage: netatmo [options]
+    -i, --initial-token=TOKEN        Refresh token to initialize authentication
     -c, --config=PATH                Path to configuration file
 ```
 
@@ -74,16 +75,31 @@ The `AbsoluteHumidity` values are calculated by the script.
 
 ## Configuration
 
-The script reads credentials from the `/etc/netatmo.yml` configuration file:
+The script reads credentials from the configuration file:
 
 ```
 ---
 client_id: <hex-value>
 client_secret: <hex-value>
-refresh_token: <token generated on website>
 device_id: <station MAC>
 # include_station_name: false # returns stations data on root level
+token_path: /var/lib/netatmo/token.yml
 ```
+
+## Authentication
+
+To access the Netatmo API an authentication token must be setup.
+The token will written to the `token_path` configured in the configuration file.
+This file must be writable by the script as the token will be renewed every 3h.
+
+In the Netatmo "My Apps" page go to your applications settings and generate
+a token in the "Token generator" section.
+
+The `Refresh Token` must be passed to the netatmo script with the `-i` option to
+initialize the authentication. The script will immediately refresh the token passed
+and write the new token to the token_path.
+
+On all following invocations the script will use this token and refresh it whenever it expires.
 
 ## Telegraf configuration
 
