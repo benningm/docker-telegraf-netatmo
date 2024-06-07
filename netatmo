@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# frozen_string_literal: true
+
 require 'net/http'
 require 'json'
 require 'erb'
@@ -7,10 +9,11 @@ require 'yaml'
 require 'optparse'
 
 module Netatmo
+  # Netatmo API Authentication Token
   class Token
     @@url = 'https://api.netatmo.com/oauth2/token'
 
-    def initialize(client_id, client_secret, refresh_token, scope='read_station', grant_type='refresh_token')
+    def initialize(client_id, client_secret, refresh_token, scope = 'read_station', grant_type = 'refresh_token')
       @client_id = client_id
       @client_secret = client_secret
       @refresh_token = refresh_token
@@ -43,6 +46,7 @@ module Netatmo
     end
   end
 
+  # Netatmo Weather Station
   class Station
     @@url = 'https://api.netatmo.com/api/getstationsdata'
 
@@ -99,10 +103,10 @@ module Netatmo
     def process_device_data(data)
       output = {}
       output.merge!(
-        data.select { |key, value| @device_filter.include?(key) }
+        data.select { |key, _value| @device_filter.include?(key) }
       )
       if data.key? 'dashboard_data'
-        dashboard_data = data['dashboard_data'].select { |key, value| @dashboard_filter.include?(key) }
+        dashboard_data = data['dashboard_data'].select { |key, _value| @dashboard_filter.include?(key) }
         output.merge!(calc_extra_values(dashboard_data))
       end
       output
@@ -140,6 +144,7 @@ module Netatmo
     end
   end
 
+  # Commandline inteface for the netatmo application
   class App
     attr_reader :config_file, :config
 
@@ -179,6 +184,7 @@ module Netatmo
     end
   end
 
+  # Interface for accessing configuration file options
   class Config < Hash
     class MissingSetting < StandardError; end
 
